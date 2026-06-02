@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Akoya.Proto — generated gRPC client stubs from proto/v2/*.proto.
+       Grpc.Tools generates client-only C# classes at build time.
+       Fully AOT-compatible: Google.Protobuf 3.x uses no runtime reflection
+       for serialization. -->
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsAotCompatible>true</IsAotCompatible>
+    <RootNamespace>Akoya.Proto</RootNamespace>
+    <WarningsAsErrors>nullable</WarningsAsErrors>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Google.Protobuf" Version="3.29.3" />
+    <PackageReference Include="Grpc.Net.Client" Version="2.70.0" />
+    <PackageReference Include="Grpc.Tools" Version="2.72.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- GrpcServices="Both" emits both the client (used in production) and an
+         abstract server base. The server base is never instantiated in the
+         production binary, so AOT trims it. -->
+    <Protobuf Include="..\..\proto\v2\miner.proto" GrpcServices="Both" />
+  </ItemGroup>
+
+</Project>

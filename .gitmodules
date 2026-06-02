@@ -1,0 +1,3 @@
+[submodule "native/pearl-gemm/third_party/cutlass"]
+	path = native/pearl-gemm/third_party/cutlass
+	url = https://github.com/NVIDIA/cutlass.git

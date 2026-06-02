@@ -1,0 +1,21 @@
+[package]
+name = "pearl-blake3"
+version = "0.1.0"
+edition = "2021"
+description = "Blake3 utilities for pearl"
+
+[lib]
+name = "pearl_blake3"
+crate-type = ["rlib"]
+
+[features]
+serde = ["dep:serde", "dep:serde_with"]
+pyo3 = ["dep:pyo3"]
+
+[dependencies]
+blake3 = { version = "1.8", features = ["rayon"] }
+rayon = "1.12"
+anyhow = "1.0"
+serde = { version = "1.0", features = ["derive"], optional = true }
+serde_with = { version = "3.18.0", optional = true }
+pyo3 = { version = "0.24", optional = true }

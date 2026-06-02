@@ -1,0 +1,105 @@
+// BLAKE3_ROUND / BLAKE3_PERMUTE — lifted VERBATIM from csrc/blake3/blake3.cuh.
+// Operates on rState()/rBlock()/rOrigBlock() accessors defined by the includer.
+#define BLAKE3_ROUND()                                          \
+  do {                                                          \
+    rState(0) = add32(rState(0), add32(rState(4), rBlock(0)));  \
+    rState(12) = rightrotate32(rState(12) ^ rState(0), 16);     \
+    rState(8) = add32(rState(8), rState(12));                   \
+    rState(4) = rightrotate32(rState(4) ^ rState(8), 12);       \
+    rState(0) = add32(rState(0), add32(rState(4), rBlock(1)));  \
+    rState(12) = rightrotate32(rState(12) ^ rState(0), 8);      \
+    rState(8) = add32(rState(8), rState(12));                   \
+    rState(4) = rightrotate32(rState(4) ^ rState(8), 7);        \
+    rState(1) = add32(rState(1), add32(rState(5), rBlock(2)));  \
+    rState(13) = rightrotate32(rState(13) ^ rState(1), 16);     \
+    rState(9) = add32(rState(9), rState(13));                   \
+    rState(5) = rightrotate32(rState(5) ^ rState(9), 12);       \
+    rState(1) = add32(rState(1), add32(rState(5), rBlock(3)));  \
+    rState(13) = rightrotate32(rState(13) ^ rState(1), 8);      \
+    rState(9) = add32(rState(9), rState(13));                   \
+    rState(5) = rightrotate32(rState(5) ^ rState(9), 7);        \
+    rState(2) = add32(rState(2), add32(rState(6), rBlock(4)));  \
+    rState(14) = rightrotate32(rState(14) ^ rState(2), 16);     \
+    rState(10) = add32(rState(10), rState(14));                 \
+    rState(6) = rightrotate32(rState(6) ^ rState(10), 12);      \
+    rState(2) = add32(rState(2), add32(rState(6), rBlock(5)));  \
+    rState(14) = rightrotate32(rState(14) ^ rState(2), 8);      \
+    rState(10) = add32(rState(10), rState(14));                 \
+    rState(6) = rightrotate32(rState(6) ^ rState(10), 7);       \
+    rState(3) = add32(rState(3), add32(rState(7), rBlock(6)));  \
+    rState(15) = rightrotate32(rState(15) ^ rState(3), 16);     \
+    rState(11) = add32(rState(11), rState(15));                 \
+    rState(7) = rightrotate32(rState(7) ^ rState(11), 12);      \
+    rState(3) = add32(rState(3), add32(rState(7), rBlock(7)));  \
+    rState(15) = rightrotate32(rState(15) ^ rState(3), 8);      \
+    rState(11) = add32(rState(11), rState(15));                 \
+    rState(7) = rightrotate32(rState(7) ^ rState(11), 7);       \
+    rState(0) = add32(rState(0), add32(rState(5), rBlock(8)));  \
+    rState(15) = rightrotate32(rState(15) ^ rState(0), 16);     \
+    rState(10) = add32(rState(10), rState(15));                 \
+    rState(5) = rightrotate32(rState(5) ^ rState(10), 12);      \
+    rState(0) = add32(rState(0), add32(rState(5), rBlock(9)));  \
+    rState(15) = rightrotate32(rState(15) ^ rState(0), 8);      \
+    rState(10) = add32(rState(10), rState(15));                 \
+    rState(5) = rightrotate32(rState(5) ^ rState(10), 7);       \
+    rState(1) = add32(rState(1), add32(rState(6), rBlock(10))); \
+    rState(12) = rightrotate32(rState(12) ^ rState(1), 16);     \
+    rState(11) = add32(rState(11), rState(12));                 \
+    rState(6) = rightrotate32(rState(6) ^ rState(11), 12);      \
+    rState(1) = add32(rState(1), add32(rState(6), rBlock(11))); \
+    rState(12) = rightrotate32(rState(12) ^ rState(1), 8);      \
+    rState(11) = add32(rState(11), rState(12));                 \
+    rState(6) = rightrotate32(rState(6) ^ rState(11), 7);       \
+    rState(2) = add32(rState(2), add32(rState(7), rBlock(12))); \
+    rState(13) = rightrotate32(rState(13) ^ rState(2), 16);     \
+    rState(8) = add32(rState(8), rState(13));                   \
+    rState(7) = rightrotate32(rState(7) ^ rState(8), 12);       \
+    rState(2) = add32(rState(2), add32(rState(7), rBlock(13))); \
+    rState(13) = rightrotate32(rState(13) ^ rState(2), 8);      \
+    rState(8) = add32(rState(8), rState(13));                   \
+    rState(7) = rightrotate32(rState(7) ^ rState(8), 7);        \
+    rState(3) = add32(rState(3), add32(rState(4), rBlock(14))); \
+    rState(14) = rightrotate32(rState(14) ^ rState(3), 16);     \
+    rState(9) = add32(rState(9), rState(14));                   \
+    rState(4) = rightrotate32(rState(4) ^ rState(9), 12);       \
+    rState(3) = add32(rState(3), add32(rState(4), rBlock(15))); \
+    rState(14) = rightrotate32(rState(14) ^ rState(3), 8);      \
+    rState(9) = add32(rState(9), rState(14));                   \
+    rState(4) = rightrotate32(rState(4) ^ rState(9), 7);        \
+  } while (0)
+
+#define BLAKE3_PERMUTE()         \
+  do {                           \
+    rOrigBlock(0) = rBlock(0);   \
+    rOrigBlock(1) = rBlock(1);   \
+    rOrigBlock(2) = rBlock(2);   \
+    rOrigBlock(3) = rBlock(3);   \
+    rOrigBlock(4) = rBlock(4);   \
+    rOrigBlock(5) = rBlock(5);   \
+    rOrigBlock(6) = rBlock(6);   \
+    rOrigBlock(7) = rBlock(7);   \
+    rOrigBlock(8) = rBlock(8);   \
+    rOrigBlock(9) = rBlock(9);   \
+    rOrigBlock(10) = rBlock(10); \
+    rOrigBlock(11) = rBlock(11); \
+    rOrigBlock(12) = rBlock(12); \
+    rOrigBlock(13) = rBlock(13); \
+    rOrigBlock(14) = rBlock(14); \
+    rOrigBlock(15) = rBlock(15); \
+    rBlock(0) = rOrigBlock(2);   \
+    rBlock(1) = rOrigBlock(6);   \
+    rBlock(2) = rOrigBlock(3);   \
+    rBlock(3) = rOrigBlock(10);  \
+    rBlock(4) = rOrigBlock(7);   \
+    rBlock(5) = rOrigBlock(0);   \
+    rBlock(6) = rOrigBlock(4);   \
+    rBlock(7) = rOrigBlock(13);  \
+    rBlock(8) = rOrigBlock(1);   \
+    rBlock(9) = rOrigBlock(11);  \
+    rBlock(10) = rOrigBlock(12); \
+    rBlock(11) = rOrigBlock(5);  \
+    rBlock(12) = rOrigBlock(9);  \
+    rBlock(13) = rOrigBlock(14); \
+    rBlock(14) = rOrigBlock(15); \
+    rBlock(15) = rOrigBlock(8);  \
+  } while (0)

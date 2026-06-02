@@ -1,0 +1,27 @@
+# .NET
+bin/
+obj/
+.vs/
+*.user
+
+# build.sh ready-to-run output
+out/
+
+# Rust
+target/
+
+# CUDA / native build outputs
+**/build/
+*.o
+*.so
+
+# Windows native build outputs (build.ps1 / CMake)
+**/build-win/
+*.obj
+*.dll
+*.lib
+*.exp
+*.pdb
+
+# CUTLASS is a git submodule (see .gitmodules). The gitlink is committed so that
+# `git clone --recurse-submodules` fetches it; its working-tree files are not vendored.

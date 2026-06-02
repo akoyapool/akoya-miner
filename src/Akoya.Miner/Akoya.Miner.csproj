@@ -1,0 +1,67 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <PublishAot>true</PublishAot>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <RootNamespace>Akoya.Miner</RootNamespace>
+    <AssemblyName>akoya-miner</AssemblyName>
+    <WarningsAsErrors>nullable</WarningsAsErrors>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(AkoyaPerfTimings)' == 'true'">
+    <DefineConstants>$(DefineConstants);PERF_TIMINGS</DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Akoya.Crypto\Akoya.Crypto.csproj" />
+    <ProjectReference Include="..\Akoya.Cuda\Akoya.Cuda.csproj" />
+    <ProjectReference Include="..\Akoya.Mining\Akoya.Mining.csproj" />
+    <ProjectReference Include="..\Akoya.MinerCore\Akoya.MinerCore.csproj" />
+    <ProjectReference Include="..\Akoya.PearlGemm\Akoya.PearlGemm.csproj" />
+    <ProjectReference Include="..\Akoya.Pool\Akoya.Pool.csproj" />
+    <ProjectReference Include="..\Akoya.Proto\Akoya.Proto.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="9.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="9.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="9.0.0" />
+  </ItemGroup>
+
+  <!-- Embed git sha + miner version. Version comes from version.txt at the
+       repo root. AKOYA_GIT_SHA env var overrides git rev-parse. -->
+  <Target Name="_EmbedGitSha" BeforeTargets="GetAssemblyAttributes">
+    <PropertyGroup>
+      <_AkoyaGitShaEnv>$([System.Environment]::GetEnvironmentVariable('AKOYA_GIT_SHA'))</_AkoyaGitShaEnv>
+      <_AkoyaVersionFile>$(MSBuildThisFileDirectory)..\..\version.txt</_AkoyaVersionFile>
+      <AkoyaVersion Condition="Exists('$(_AkoyaVersionFile)')">$([System.IO.File]::ReadAllText('$(_AkoyaVersionFile)').Trim())</AkoyaVersion>
+      <AkoyaVersion Condition="'$(AkoyaVersion)' == ''">0.0.0</AkoyaVersion>
+    </PropertyGroup>
+    <Exec Command="git rev-parse --short=12 HEAD" ConsoleToMSBuild="true"
+          IgnoreExitCode="true" Condition="'$(_AkoyaGitShaEnv)' == ''">
+      <Output TaskParameter="ConsoleOutput" PropertyName="_AkoyaGitShaCmd" />
+      <Output TaskParameter="ExitCode" PropertyName="_AkoyaGitShaExit" />
+    </Exec>
+    <PropertyGroup>
+      <AkoyaGitSha Condition="'$(_AkoyaGitShaEnv)' != ''">$(_AkoyaGitShaEnv)</AkoyaGitSha>
+      <AkoyaGitSha Condition="'$(AkoyaGitSha)' == '' and '$(_AkoyaGitShaExit)' == '0'">$(_AkoyaGitShaCmd)</AkoyaGitSha>
+      <AkoyaGitSha Condition="'$(AkoyaGitSha)' == ''">unknown</AkoyaGitSha>
+    </PropertyGroup>
+    <ItemGroup>
+      <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+        <_Parameter1>GitSha</_Parameter1>
+        <_Parameter2>$(AkoyaGitSha)</_Parameter2>
+      </AssemblyAttribute>
+      <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+        <_Parameter1>MinerVersion</_Parameter1>
+        <_Parameter2>$(AkoyaVersion)</_Parameter2>
+      </AssemblyAttribute>
+    </ItemGroup>
+  </Target>
+
+</Project>

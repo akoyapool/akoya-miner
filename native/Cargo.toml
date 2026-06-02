@@ -1,0 +1,5 @@
+# Workspace for the miner's native Rust libraries.
+# Contains ONLY the BLAKE3 merkle code the miner needs.
+[workspace]
+resolver = "2"
+members = ["pearl-blake3", "pearl-mining-capi"]

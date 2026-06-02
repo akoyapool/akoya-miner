@@ -1,0 +1,45 @@
+<Project>
+  <!-- Roslyn analyzer baseline for all src/* projects.
+       Tests/ are intentionally excluded (test code is allowed to be noisy).
+
+       Strategy:
+         • AnalysisLevel=latest-recommended bumps the default ruleset above
+           SDK-default so we surface correctness/security CAs (CA1806,
+           CA2016, CA5359, CA1068, …).
+         • Suppressions below are documented per-category. Every entry must
+           have a rationale comment — when in doubt, fix the warning rather
+           than adding to the list.
+  -->
+  <PropertyGroup>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <EnforceCodeStyleInBuild>false</EnforceCodeStyleInBuild>
+
+    <NoWarn>$(NoWarn);CA1848;CA1873;CA1401;CA1707;CA1720;CA1711;CA2014</NoWarn>
+    <!--
+      CA1848 / CA1873 — "Use LoggerMessage delegates" / "expensive log
+        evaluation". We do this in the hot path (GpuWorker iter loop) by
+        construction; elsewhere the readability cost of LoggerMessage
+        source-gen exceeds the per-line cost of structured logging at
+        Information level. Re-audited as part of release hardening.
+
+      CA1401 — "P/Invokes should not be visible". Our LibraryImport
+        partials are inside `internal static class XxxNative` containers
+        but the partial methods themselves are public so they can be
+        used from the same-assembly callers without forcing the
+        accessibility through extra wrapper layers. Not exported.
+
+      CA1707 — "Identifiers should not contain underscores". The Akoya
+        protocol and the pearl_capi FFI both use snake_case; mirroring
+        their names in C# is intentional for grep-ability.
+
+      CA1720 / CA1711 — "Identifiers contain type names / reserved
+        suffix". Triggered on domain types (NonceFloor, BlockTemplate,
+        ShareEx) where the suffix is part of the term.
+
+      CA2014 — "Do not use stackalloc in loops". Pre-existing in
+        Blake3.cs hot path; the stackalloc is bounded by the loop's
+        compile-time-known constant.
+    -->
+  </PropertyGroup>
+</Project>

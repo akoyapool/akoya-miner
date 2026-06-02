@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Akoya.Crypto/Akoya.Crypto.csproj" />
+    <Project Path="src/Akoya.Cuda/Akoya.Cuda.csproj" />
+    <Project Path="src/Akoya.Miner/Akoya.Miner.csproj" />
+    <Project Path="src/Akoya.MinerCore/Akoya.MinerCore.csproj" />
+    <Project Path="src/Akoya.Mining/Akoya.Mining.csproj" />
+    <Project Path="src/Akoya.PearlGemm/Akoya.PearlGemm.csproj" />
+    <Project Path="src/Akoya.Pool/Akoya.Pool.csproj" />
+    <Project Path="src/Akoya.Proto/Akoya.Proto.csproj" />
+  </Folder>
+</Solution>

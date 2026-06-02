@@ -1,0 +1,250 @@
+// V2 Edge Protocol - Main miner service definitions
+syntax = "proto3";
+package pearlpool.mining.v2;
+
+option csharp_namespace = "PearlPool.Proto.V2";
+
+// ─── Entry Points ───────────────────────────────────────────────────────────
+
+service MinerService {
+  // First call from a new miner. Issues MinerId + SessionToken.
+  rpc Register(RegisterRequest) returns (RegisterResponse);
+
+  // Main bidi stream. Miner sends MinerEvent (first message must be
+  // AuthEvent); server sends PoolEvent (first message is a JobAssignment).
+  rpc MiningStream(stream MinerEvent) returns (stream PoolEvent);
+
+  // Alternative entry point for a miner with a live session token.
+  // Returns current job without consuming a registration slot.
+  rpc Resume(ResumeRequest) returns (ResumeResponse);
+}
+
+// ─── Register ───────────────────────────────────────────────────────────────
+
+message RegisterRequest {
+  bytes   miner_id        = 1;  // Empty for first register; server assigns
+  string  identity_key    = 2;  // Optional: previously-issued long-lived re-claim key
+  string  wallet_address  = 3;
+  string  worker_name     = 4;
+  repeated GpuCard gpu_cards = 5;  // One miner process, many GPUs
+  double  claimed_total_hashrate = 6;  // From client speed-test. 0 = unknown
+  string  miner_version   = 7;
+  string  git_sha         = 8;
+  uint32  protocol_version = 9; // Must be 2 for V2 endpoints
+  uint32  k               = 10; // Miner's claimed K parameter
+}
+
+message GpuCard {
+  string uuid     = 1;  // GPU UUID for hardware fingerprinting
+  string model    = 2;  // e.g. "RTX 4090", "H100"
+  uint32 index    = 3;  // Local device index
+  double hashrate = 4;  // Per-card claimed hashrate
+}
+
+message RegisterResponse {
+  bool    success         = 1;
+  bytes   miner_id        = 2;  // 16 B UUID assigned by server
+  string  session_token   = 3;  // HMAC token, 4h TTL
+  string  identity_key    = 4;  // Issued on first register; echoed on reclaim
+  uint32  initial_difficulty_nbits = 5;  // From claimed hashrate or pool estimate
+  bytes   pool_id         = 6;  // Pool identifier hash (32 B)
+  string  error_message   = 7;  // Non-empty on failure
+}
+
+// ─── Resume ─────────────────────────────────────────────────────────────────
+
+message ResumeRequest {
+  bytes   miner_id        = 1;
+  string  session_token   = 2;
+  bytes   last_seen_job_id = 3; // Optional: server can re-push if stale
+}
+
+message ResumeResponse {
+  bool    success         = 1;
+  string  error_message   = 2;
+  // Current job context — miner resumes immediately
+  bytes   sigma           = 3;
+  uint32  target_nbits    = 4;
+  uint32  network_target_nbits = 5;
+  int64   block_height    = 6;
+  bytes   job_id          = 7;  // 16 B UUID
+  // Refreshed session token (extends TTL)
+  string  session_token_refreshed = 8;
+  // b_seed = BLAKE3(poolSecret ‖ minerId ‖ σ). Mirrors JobAssignment.b_seed
+  // so the Resume warm-start path can construct a complete SigmaContext.
+  bytes   b_seed          = 9;
+  // Pool-recommended K for audit_proof v1 (0 = audits disabled).
+  uint32  audit_k         = 10;
+}
+
+// ─── MiningStream ────────────────────────────────────────────────────────────
+
+// Miner → Pool
+message MinerEvent {
+  uint64 seq = 1;  // Monotonically increasing; enables ordering/replay detection
+  oneof event {
+    AuthEvent        auth        = 2;  // First message; presents session token
+    ShareSubmission  share       = 3;
+    Heartbeat        heartbeat   = 4;
+    PingEvent        ping        = 5;
+  }
+}
+
+// Pool → Miner
+message PoolEvent {
+  uint64 seq = 1;
+  oneof event {
+    JobAssignment    job         = 2;
+    ShareResult      share_result = 3;
+    DifficultyAdjust vardiff     = 4;
+    PongEvent        pong        = 5;
+    PoolError        error       = 6;
+    ReconnectHint    reconnect   = 7;  // Server-initiated graceful reconnect
+  }
+}
+
+// ─── Auth ────────────────────────────────────────────────────────────────────
+
+message AuthEvent {
+  bytes   miner_id      = 1;
+  string  session_token = 2;
+  // OR: if no token, trigger re-registration flow
+  RegisterRequest register = 3;
+}
+
+// ─── Job ─────────────────────────────────────────────────────────────────────
+
+// JobAssignment carries the per-(miner, σ) B-seed. The miner expands B from
+// b_seed deterministically (BLAKE3-XOF) and submits the resulting work in
+// ShareSubmission, echoing the same b_seed back so Edge can verify the
+// expansion produced the bytes it expected. b_seed construction is pool-
+// private; miners treat the 32 bytes as opaque.
+message JobAssignment {
+  bytes   job_id              = 1;   // 16 B UUID
+  bytes   sigma               = 2;   // Incomplete block header bytes
+  uint32  target_nbits        = 3;   // Per-miner vardiff target
+  uint32  network_target_nbits = 4;
+  int64   block_height        = 5;
+  uint32  protocol_version    = 6;   // Always 2 in V2
+  bytes   b_seed              = 7;   // 32 B per-(miner, σ) seed for B expansion (required)
+  // Number of audit-proof openings the next ShareSubmission must include.
+  // 0 = audit disabled (the pool falls back to sampled derivation).
+  // Range [0, 64]; values > 64 are malformed. Held stable across the σ window;
+  // never updated mid-σ.
+  uint32  audit_k             = 8;
+}
+
+// ─── Share ───────────────────────────────────────────────────────────────────
+
+// One message type. If the share clears network_target_nbits the pool constructs
+// and submits a block from this payload — no BlockSubmission exists in V2.
+message ShareSubmission {
+  // No client-supplied share_id: the pool dedupes by the server-recomputed
+  // jackpot hash. Clients cannot pick the dedupe key, so they cannot replay
+  // an old accepted share or pre-claim someone else's.
+  bytes   sigma               = 2;
+  bytes   config_bytes        = 3;
+  bytes   hash_a              = 4;
+  bytes   hash_b              = 5;
+  bytes   a_slice             = 6;
+  bytes   b_slice             = 7;
+  MerkleProof a_proof         = 8;   // Typed merkle proof for the A-row commitment
+  MerkleProof b_proof         = 9;   // Typed merkle proof for the B-column commitment
+  bytes   claimed_hash        = 10;
+  uint32  claimed_difficulty_nbits = 11;
+  int32   tile_row            = 12;
+  int32   tile_col            = 13;
+  // Matrix dimensions (M = A's row count, N = B^T's row count = B's col count).
+  // The miner chooses these per its GEMM tile shape; the pool needs them to
+  // reconstruct the block proof on block-find.
+  uint32  m                   = 14;
+  uint32  n                   = 15;
+  // b_seed echoed from JobAssignment. The pool verifies share.b_seed equals
+  // its per-(miner, σ) B-seed; shares with a mismatch are rejected.
+  bytes   b_seed              = 16;
+  // Audit-proof for B-matrix random-leaf audit. Present iff
+  // JobAssignment.audit_k > 0; absent otherwise (field default).
+  AuditProof audit_proof      = 17;
+}
+
+// Random-leaf audit of the per-(miner, σ) B-Merkle tree. Verifies on every
+// share that the miner did the BLAKE3-XOF expansion + keyed Merkle build for
+// K random leaves of B, against share.HashB.
+//
+// Wire layout: a single flat byte buffer. For each i in [0..K) (ascending),
+// the leaf-to-root sibling hashes for audit_idx[i], packed as `levels` 32-byte
+// hashes (leaf-side first). No per-opening framing, no length prefix.
+// Total length must equal K * levels * 32 where levels = log2(total_leaves)
+// from BProof.TotalLeaves (power-of-two enforced in v1).
+//
+// Audit indices are derived deterministically on both sides via
+// BLAKE3-XOF("akoya-audit-v1" ‖ claimed_hash ‖ b_seed ‖ uint32_le(K)).
+message AuditProof {
+  bytes siblings = 1;
+}
+
+// Typed BLAKE3 merkle proof. Replaces V1's bincode-encoded MerkleProofData.
+// All chunk/sibling byte arrays are fixed-size (1024 B leaf chunks per BLAKE3
+// spec, 32 B sibling hashes) — the receiver MUST reject any element that
+// doesn't match.
+message MerkleProof {
+  repeated bytes  leaf_data    = 1;  // Each entry is exactly 1024 bytes (BLAKE3 chunk).
+  repeated uint32 leaf_indices = 2;  // Strictly increasing; one per leaf_data entry.
+  uint32          total_leaves = 3;  // 2^k for the original tree.
+  repeated bytes  siblings     = 4;  // Each entry is exactly 32 bytes (BLAKE3 digest).
+}
+
+message ShareResult {
+  // 32 B BLAKE3 jackpot hash the pool recomputed for the matching submission.
+  // Use this for log correlation; if a result arrives with a hash you didn't
+  // submit, treat the connection as compromised. (Replaces the V1 client-chosen
+  // share_id, which was a replay surface.)
+  bytes   computed_hash = 1;
+  bool    accepted      = 2;
+  string  outcome       = 3;   // "Accepted", "Duplicate", "Stale", "Invalid", etc.
+  string  message       = 4;
+  bool    is_block_find = 5;
+}
+
+// ─── Vardiff ─────────────────────────────────────────────────────────────────
+
+message DifficultyAdjust {
+  uint32  new_target_nbits    = 1;
+  string  reason              = 2;  // "increase", "decrease", "initial"
+  double  measured_hashrate   = 3;  // Pool's view of miner performance
+}
+
+// ─── Housekeeping ────────────────────────────────────────────────────────────
+
+message Heartbeat {
+  int64   timestamp         = 1;
+  repeated PerGpuHashrate gpu_hashrates = 2;  // Per-card performance metrics
+  uint64  sequence_number   = 3;  // Miner's sequence number for ordering
+  double  current_hashrate  = 4;  // Total hashrate across all GPUs
+  double  latency          = 5;  // Round-trip latency in ms (optional)
+}
+
+message PerGpuHashrate {
+  string  gpu_uuid    = 1;
+  double  hashrate_5m = 2;
+  uint32  shares_5m   = 3;
+}
+
+message PingEvent {
+  int64 timestamp = 1;
+}
+
+message PongEvent {
+  int64 timestamp = 1;
+}
+
+message PoolError {
+  string code     = 1;
+  string message  = 2;
+  bool   fatal    = 3;  // If true, miner should close stream
+}
+
+message ReconnectHint {
+  int32  wait_seconds = 1;  // Jittered delay before reconnect
+  string reason       = 2;  // "pod_drain", "maintenance", etc.
+}

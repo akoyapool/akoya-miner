@@ -1,0 +1,20 @@
+[package]
+name = "pearl-mining-capi"
+version = "0.1.0"
+edition = "2021"
+description = "C ABI for Pearl mining BLAKE3 keyed-merkle operations (used by the miner via P/Invoke)"
+
+[lib]
+name = "pearl_mining_capi"
+crate-type = ["cdylib"]
+
+[dependencies]
+pearl-blake3 = { path = "../pearl-blake3", features = ["serde"] }
+blake3 = "1.8"
+rayon = "1.10"
+bincode = "1.3.3"
+lazy_static = "1.5"
+
+[profile.release]
+strip = true
+debug = false
