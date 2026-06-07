@@ -31,6 +31,10 @@ endif()
 # ── Architecture profile (mirror the Makefile's PEARL_GEMM_ARCH switch) ──────
 set(PEARL_GEMM_ARCH "ampere" CACHE STRING
     "GPU profile: h100|volta|turing|portable|ampere|ada|blackwell|b200")
+set(PEARL_GEMM_BLACKWELL_XOR_ACCUMS "" CACHE STRING
+    "Optional Blackwell transcript fragment XOR accumulator count: 4|8|16")
+set(PEARL_GEMM_BLACKWELL_MANUAL_IMMA "" CACHE STRING
+    "Optional Blackwell SM120 K-sliced IMMA mainloop experiment: 0|1")
 
 # Map profile → CMAKE_CUDA_ARCHITECTURES + the -DPEARL_GEMM_* defines and the
 # arch-specific source set. The "a" suffixes (90a/100a/120a) need CMake 3.26+.
@@ -63,6 +67,16 @@ else()
     "Supported: h100, volta, turing, portable, ampere, ada, blackwell, b200")
 endif()
 
+if(PEARL_GEMM_ARCH STREQUAL "blackwell" AND
+   NOT PEARL_GEMM_BLACKWELL_XOR_ACCUMS STREQUAL "")
+  list(APPEND ARCH_DEFINES
+    "PEARL_CONSUMER_XOR_ACCUMS=${PEARL_GEMM_BLACKWELL_XOR_ACCUMS}")
+endif()
+if(PEARL_GEMM_ARCH STREQUAL "blackwell" AND
+   NOT PEARL_GEMM_BLACKWELL_MANUAL_IMMA STREQUAL "")
+  list(APPEND ARCH_DEFINES
+    "PEARL_CONSUMER_MANUAL_IMMA=${PEARL_GEMM_BLACKWELL_MANUAL_IMMA}")
+endif()
 # ── Source sets (mirror the Makefile's SRCS_* groups) ────────────────────────
 set(SRCS_COMMON
   "${SRC}/capi/pearl_gemm_capi.cpp"
@@ -98,11 +112,16 @@ set(SRCS_LEGACY
   "${SRC}/portable/portable_int8_gemm_dp4a.cu"
   "${SRC}/capi/portable_int8_helpers.cu")
 
-# ampere/ada/blackwell share the consumer transcript lane (mirrors the
-# Makefile's SRCS_ADA / SRCS_AMPERE / SRCS_BLACKWELL).
+# ampere/ada share the generic consumer transcript lane.
 set(SRCS_CONSUMER
   "${SRC}/portable/transcript_kernel.cu"
   "${SRC}/consumer/transcript_gemm_kernel.cu"
+  "${SRC}/portable/portable_int8_gemm.cu"
+  "${SRC}/capi/portable_int8_helpers.cu")
+
+set(SRCS_BLACKWELL
+  "${SRC}/portable/transcript_kernel.cu"
+  "${SRC}/blackwell/transcript_gemm_sm120.cu"
   "${SRC}/portable/portable_int8_gemm.cu"
   "${SRC}/capi/portable_int8_helpers.cu")
 
@@ -120,7 +139,9 @@ elseif(PEARL_GEMM_ARCH STREQUAL "turing")
   set(ARCH_SRCS ${SRCS_TURING})
 elseif(PEARL_GEMM_ARCH STREQUAL "b200")
   set(ARCH_SRCS ${SRCS_B200})
-elseif(PEARL_GEMM_ARCH MATCHES "^(ampere|ada|blackwell)$")
+elseif(PEARL_GEMM_ARCH STREQUAL "blackwell")
+  set(ARCH_SRCS ${SRCS_BLACKWELL})
+elseif(PEARL_GEMM_ARCH MATCHES "^(ampere|ada)$")
   set(ARCH_SRCS ${SRCS_CONSUMER})
 else() # portable
   set(ARCH_SRCS ${SRCS_PORTABLE})
