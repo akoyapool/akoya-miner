@@ -230,9 +230,6 @@ in `./out`, or that the CUDA/ROCm runtime is installed).
 |---|---|---|
 | `BACKEND` | `cuda`, `rocm` | `cuda` |
 | `PEARL_GEMM_ARCH` | `h100`, `ampere`, `ada`, `blackwell`, `b200`, `volta`, `turing`, `portable` | auto-detect (else `h100`) |
-| `PEARL_GEMM_BLACKWELL_LOAD_POLICY` | `cp_async`, `tma` | `cp_async` |
-| `PEARL_GEMM_BLACKWELL_MANUAL_IMMA` | `0`, `1` | unset (`0`) |
-| `PEARL_GEMM_BLACKWELL_XOR_ACCUMS` | `4`, `8`, `16` | unset (`4`) |
 | `CONFIG` | `Release`, `Debug` | `Release` |
 | `RID` | .NET runtime identifier for the AOT publish | `linux-x64` |
 | `OUT` | ready-to-run output folder | `./out` |
@@ -260,47 +257,6 @@ PEARL_GEMM_ARCH=ada ./build.sh
 # RTX 50-series (Blackwell):
 PEARL_GEMM_ARCH=blackwell ./build.sh
 ```
-
-### RTX 50-series / SM120 production profile
-
-The Blackwell RTX 50-series path now uses a dedicated SM120 transcript GEMM
-implementation at `native/pearl-gemm/csrc/blackwell/transcript_gemm_sm120.cu`
-instead of the shared Ampere/Ada consumer transcript kernel.
-
-For Linux `build.sh` / Makefile builds, the tested RTX 5060 Ti production
-profile is:
-
-```bash
-PEARL_GEMM_ARCH=blackwell \
-PEARL_GEMM_BLACKWELL_LOAD_POLICY=tma \
-PEARL_GEMM_BLACKWELL_MANUAL_IMMA=1 \
-PEARL_GEMM_BLACKWELL_XOR_ACCUMS=4 \
-./build.sh
-```
-
-Validation notes from the 2026-06-06 RTX 5060 Ti (SM120) migration:
-
-- Original pre-tuning baseline from the tuning log used
-  `AKOYA_MINE_M=4096`, `AKOYA_MINE_N=131072`, `AKOYA_MINE_K=4096`,
-  and `AKOYA_MINE_NOISE_RANK=128`. The table reports single-GPU values only.
-
-  | Profile | Window | GPU | Avg TMADs/s |
-  |---|---:|---|---:|
-  | CUDA 13.1 default Blackwell/cp_async | 5 minutes | RTX 5060 Ti | 71.060 |
-
-  After tuning, the single-GPU benchmark measured about `84.23 TMADs/s`, an
-  improvement of approximately `18.5%` over the original `71.060 TMADs/s`
-  per-GPU baseline.
-
-- Ubuntu 26.04 used CUDA 13.3 (`/usr/local/cuda-13.3/bin/nvcc`) for the clean
-  production build. CUDA 13.1 hit a system-header `rsqrt` / `rsqrtf` conflict on
-  that host.
-- The tuned profile registered successfully against the production pool and
-  benchmarked at about `84.23 TMADs/s`, with live stats around
-  `85.3-85.6 TMADs/s`; submitted shares were accepted.
-- The build output is not bundled with `libcudart.so.13`, so keep a compatible
-  CUDA runtime installed on the target host or package it next to
-  `libpearl_gemm_capi.so`.
 
 ---
 

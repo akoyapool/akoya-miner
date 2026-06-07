@@ -47,8 +47,6 @@ PEARL_GEMM_BLACKWELL_KBLOCK ?=
 PEARL_GEMM_BLACKWELL_SWIZZLE_BITS ?=
 PEARL_GEMM_BLACKWELL_BM ?=
 PEARL_GEMM_BLACKWELL_BN ?=
-PEARL_GEMM_BLACKWELL_XOR_ACCUMS ?=
-PEARL_GEMM_BLACKWELL_MANUAL_IMMA ?=
 PEARL_GEMM_BLACKWELL_LOAD_POLICY ?= cp_async
 
 # ── Architecture profile ─────────────────────────────────────────────────
@@ -231,12 +229,6 @@ ifeq ($(PEARL_GEMM_ARCH),blackwell)
   ifneq ($(PEARL_GEMM_BLACKWELL_BN),)
     DEFINES += -DPEARL_CONSUMER_BN=$(PEARL_GEMM_BLACKWELL_BN)
   endif
-  ifneq ($(PEARL_GEMM_BLACKWELL_XOR_ACCUMS),)
-    DEFINES += -DPEARL_CONSUMER_XOR_ACCUMS=$(PEARL_GEMM_BLACKWELL_XOR_ACCUMS)
-  endif
-  ifneq ($(PEARL_GEMM_BLACKWELL_MANUAL_IMMA),)
-    DEFINES += -DPEARL_CONSUMER_MANUAL_IMMA=$(PEARL_GEMM_BLACKWELL_MANUAL_IMMA)
-  endif
   ifeq ($(PEARL_GEMM_BLACKWELL_LOAD_POLICY),tma)
     DEFINES += -DPEARL_CONSUMER_USE_TMA_EXPERIMENT=1
   else ifneq ($(PEARL_GEMM_BLACKWELL_LOAD_POLICY),cp_async)
@@ -315,7 +307,7 @@ SRCS_AMPERE := \
 
 SRCS_BLACKWELL := \
   $(SRC)/portable/transcript_kernel.cu \
-  $(SRC)/blackwell/transcript_gemm_sm120.cu \
+  $(SRC)/consumer/transcript_gemm_kernel.cu \
   $(SRC)/portable/portable_int8_gemm.cu \
   $(SRC)/capi/portable_int8_helpers.cu
 
