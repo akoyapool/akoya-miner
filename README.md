@@ -282,11 +282,15 @@ Validation notes from the 2026-06-06 RTX 5060 Ti (SM120) migration:
 
 - Original pre-tuning baseline from the tuning log used
   `AKOYA_MINE_M=4096`, `AKOYA_MINE_N=131072`, `AKOYA_MINE_K=4096`,
-  `AKOYA_MINE_NOISE_RANK=128`, and `AKOYA_GPU_INDICES=all`.
+  and `AKOYA_MINE_NOISE_RANK=128`. The table reports single-GPU values only.
 
-  | Profile | Window | GPUs | Per-GPU avg TMADs/s | Total avg TMADs/s |
-  |---|---:|---:|---:|---:|
-  | CUDA 13.1 default Blackwell/cp_async | 5 minutes | 2x RTX 5060 Ti | 71.060 | 142.121 |
+  | Profile | Window | GPU | Avg TMADs/s |
+  |---|---:|---|---:|
+  | CUDA 13.1 default Blackwell/cp_async | 5 minutes | RTX 5060 Ti | 71.060 |
+
+  After tuning, the single-GPU benchmark measured about `84.23 TMADs/s`, an
+  improvement of approximately `18.5%` over the original `71.060 TMADs/s`
+  per-GPU baseline.
 
 - Ubuntu 26.04 used CUDA 13.3 (`/usr/local/cuda-13.3/bin/nvcc`) for the clean
   production build. CUDA 13.1 hit a system-header `rsqrt` / `rsqrtf` conflict on
