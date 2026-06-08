@@ -1,0 +1,44 @@
+# Normalize text by default, then force LF for Unix/container artifacts.
+* text=auto
+
+.gitattributes text eol=lf
+.dockerignore text eol=lf
+Dockerfile text eol=lf
+*.Dockerfile text eol=lf
+
+*.sh text eol=lf
+scripts/** text eol=lf
+hiveos/** text eol=lf
+
+*.md text eol=lf
+*.txt text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.json text eol=lf
+*.toml text eol=lf
+*.lock text eol=lf
+*.slnx text eol=lf
+*.csproj text eol=lf
+*.props text eol=lf
+*.targets text eol=lf
+*.cs text eol=lf
+*.proto text eol=lf
+
+*.c text eol=lf
+*.cc text eol=lf
+*.cpp text eol=lf
+*.cu text eol=lf
+*.cuh text eol=lf
+*.h text eol=lf
+*.hpp text eol=lf
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.zip binary
+*.tar binary
+*.gz binary
+*.tgz binary

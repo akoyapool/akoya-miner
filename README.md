@@ -207,6 +207,95 @@ That's the only required setting — `AKOYA_POOL_WALLET`. The miner defaults to
 the production pool at `pool-v2.akoyapool.com:443` (TLS). The `./out` folder is
 self-contained — copy it to any matching machine and run it as-is.
 
+### Docker
+
+The top-level `Dockerfile` builds the same universal NVIDIA image shape used by
+the Akoya release images: it compiles separate GEMM libraries for each selected
+GPU family and the entrypoint selects the best one at startup from
+`nvidia-smi` compute capability.
+
+```bash
+# Modern image: h100, portable, ampere, ada, blackwell, b200.
+bash ./scripts/build-docker.sh akoya-miner:latest --low-memory
+
+docker run --gpus all --restart=unless-stopped \
+  -e AKOYA_POOL_WALLET=prl1youraddresshere \
+  -e AKOYA_POOL_WORKER=rig01 \
+  -v akoya-session:/var/lib/akoya-miner \
+  akoya-miner:latest
+```
+
+`--low-memory` serializes the heavy CUDA/Rust/.NET phases for constrained
+builders. You can also cap Docker itself, for example:
+
+```bash
+DOCKER_BUILD_MEMORY=8g DOCKER_BUILD_CPUS=2 \
+  bash ./scripts/build-docker.sh akoya-miner:latest --low-memory
+```
+
+The modern image targets CUDA 12.8+ drivers and includes the tuned RTX
+50-series Blackwell profile by default:
+`PEARL_GEMM_BLACKWELL_LOAD_POLICY=tma`,
+`PEARL_GEMM_BLACKWELL_MANUAL_IMMA=1`, and
+`PEARL_GEMM_BLACKWELL_XOR_ACCUMS=4`.
+
+For a single image that also includes Volta/Turing:
+
+```bash
+bash ./scripts/build-docker.sh akoya-miner:all --all
+```
+
+For a Blackwell-only diagnostic image:
+
+```bash
+bash ./scripts/build-docker.sh akoya-miner:blackwell --blackwell-only --low-memory
+```
+
+For the older CUDA 12.2 legacy image profile used on sm_70/sm_75 hosts:
+
+```bash
+bash ./scripts/build-docker.sh akoya-miner:cuda122 --legacy-cuda122
+```
+
+Override selection at runtime with `AKOYA_GEMM_VARIANT=h100`, `ampere`, `ada`,
+`blackwell`, `b200`, `volta`, `turing`, or `portable`; leave it unset for auto
+detection.
+
+### Release Packages
+
+The release tarballs distributed outside Docker are built from the same native
+artifact set:
+
+```bash
+DOCKER_BUILD_MEMORY=8g DOCKER_BUILD_CPUS=2 \
+  bash ./scripts/build-packages.sh "$(cat version.txt)" --low-memory
+```
+
+This produces:
+
+```text
+dist/akoya-miner-<version>-portable.tar.gz
+dist/akoya-miner-<version>.tar.gz
+```
+
+The first tarball is the standalone Linux portable package. The second is the
+HiveOS custom miner package with `h-run.sh`, `h-config.sh`, `h-stats.sh`, the
+manifest, and driver checks.
+
+To also build the CUDA 12.2 legacy packages for sm_70/sm_75 hosts:
+
+```bash
+DOCKER_BUILD_MEMORY=8g DOCKER_BUILD_CPUS=2 \
+  bash ./scripts/build-packages.sh "$(cat version.txt)" --low-memory --with-legacy-cuda122
+```
+
+That additionally produces:
+
+```text
+dist/akoya-miner-<version>-cuda122-portable.tar.gz
+dist/akoya-miner-<version>-cuda122.tar.gz
+```
+
 ### Verify the build
 
 Before mining, run the built-in **self-test** — it checks config, loads both
@@ -277,30 +366,6 @@ PEARL_GEMM_BLACKWELL_MANUAL_IMMA=1 \
 PEARL_GEMM_BLACKWELL_XOR_ACCUMS=4 \
 ./build.sh
 ```
-
-Validation notes from the 2026-06-06 RTX 5060 Ti (SM120) migration:
-
-- Original pre-tuning baseline from the tuning log used
-  `AKOYA_MINE_M=4096`, `AKOYA_MINE_N=131072`, `AKOYA_MINE_K=4096`,
-  and `AKOYA_MINE_NOISE_RANK=128`. The table reports single-GPU values only.
-
-  | Profile | Window | GPU | Avg TMADs/s |
-  |---|---:|---|---:|
-  | CUDA 13.1 default Blackwell/cp_async | 5 minutes | RTX 5060 Ti | 71.060 |
-
-  After tuning, the single-GPU benchmark measured about `84.23 TMADs/s`, an
-  improvement of approximately `18.5%` over the original `71.060 TMADs/s`
-  per-GPU baseline.
-
-- Ubuntu 26.04 used CUDA 13.3 (`/usr/local/cuda-13.3/bin/nvcc`) for the clean
-  production build. CUDA 13.1 hit a system-header `rsqrt` / `rsqrtf` conflict on
-  that host.
-- The tuned profile registered successfully against the production pool and
-  benchmarked at about `84.23 TMADs/s`, with live stats around
-  `85.3-85.6 TMADs/s`; submitted shares were accepted.
-- The build output is not bundled with `libcudart.so.13`, so keep a compatible
-  CUDA runtime installed on the target host or package it next to
-  `libpearl_gemm_capi.so`.
 
 ---
 

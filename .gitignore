@@ -6,6 +6,7 @@ obj/
 
 # build.sh ready-to-run output
 out/
+dist/
 
 # Rust
 target/
